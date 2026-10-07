@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiki Stream Pipeline</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 24px; background: #f5f6f8; color: #1d2330; }
+  header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+  h1 { margin: 0; font-size: 22px; }
+  .meta { font-size: 13px; color: #5b6475; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card.wide { grid-column: 1 / -1; }
+  h2 { margin: 0 0 10px; font-size: 15px; }
+  .box { position: relative; height: 280px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Wiki Stream Pipeline</h1>
+    <div class="meta">Live Wikimedia edits &middot; last updated: <span id="updated">-</span></div>
+    <div class="meta"><b>Updates every 10 seconds</b></div>
+  </div>
+  <label><input type="checkbox" id="wikidata"> Include Wikidata</label>
+</header>
+<div class="grid">
+  <div class="card wide"><h2>Edits per minute (last 60 min)</h2><div class="box"><canvas id="line"></canvas></div></div>
+  <div class="card"><h2>Most active wikis (last 10 min)</h2><div class="box"><canvas id="bar"></canvas></div></div>
+  <div class="card"><h2>Bots vs humans (last 60 min)</h2><div class="box"><canvas id="donut"></canvas></div></div>
+</div>
+<script>
+const line = new Chart(document.getElementById('line'), {
+  type: 'line',
+  data: { labels: [], datasets: [{ label: 'Edits', data: [], borderColor: '#3b6fd4', tension: .25, pointRadius: 0 }] },
+  options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+const bar = new Chart(document.getElementById('bar'), {
+  type: 'bar',
+  data: { labels: [], datasets: [{ data: [], backgroundColor: '#3b6fd4' }] },
+  options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
+});
+const donut = new Chart(document.getElementById('donut'), {
+  type: 'doughnut',
+  data: { labels: ['Bots', 'Humans'], datasets: [{ data: [0, 0], backgroundColor: ['#e08a2e', '#3b6fd4'] }] },
+  options: { maintainAspectRatio: false }
+});
+
+async function get(path) {
+  const inc = document.getElementById('wikidata').checked;
+  const r = await fetch(`/api/${path}?include_wikidata=${inc}`);
+  if (!r.ok) throw new Error(path + ' ' + r.status);
+  return r.json();
+}
+
+async function refresh() {
+  try {
+    const [epm, top, share] = await Promise.all([get('edits-per-minute'), get('top-wikis'), get('bot-share')]);
+    line.data.labels = epm.map(d => new Date(d.window_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    line.data.datasets[0].data = epm.map(d => d.edits);
+    bar.data.labels = top.map(d => d.wiki);
+    bar.data.datasets[0].data = top.map(d => d.total_edits);
+    donut.data.datasets[0].data = [share.bot, share.human];
+    [line, bar, donut].forEach(c => c.update());
+    document.getElementById('updated').textContent = new Date().toLocaleTimeString();
+  } catch (e) { console.error(e); }
+}
+
+document.getElementById('wikidata').addEventListener('change', refresh);
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>
