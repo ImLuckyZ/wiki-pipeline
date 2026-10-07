@@ -77,6 +77,38 @@ services:
       WIKI_CONTACT: ${WIKI_CONTACT:?Set WIKI_CONTACT in your .env file}
     restart: unless-stopped
 
+  # ---------- Spark (used later for processing) ----------
+  spark:
+    build: ./spark
+    container_name: wiki-spark
+    ports:
+      - "8080:8080"   # Spark Web UI
+    user: root
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: wiki-edits
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - spark_ivy:/ivy
+      - spark_checkpoints:/checkpoints
+    command: >
+      /opt/spark/bin/spark-submit
+      --master local[2]
+      --conf spark.jars.ivy=/ivy
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3
+      /app/job.py
+    restart: unless-stopped
+      
 volumes:
   kafka_data:
   postgres_data:
+  spark_ivy:
+  spark_checkpoints:
