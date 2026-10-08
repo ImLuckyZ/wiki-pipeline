@@ -10,11 +10,24 @@
   header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
   h1 { margin: 0; font-size: 22px; }
   .meta { font-size: 13px; color: #5b6475; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
-  .card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  /* centered content with blank space on the sides on big screens */
+  header, .grid { max-width: 1400px; margin-left: auto; margin-right: auto; }
+
+  /* two equal columns; the wide card spans both */
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .card.wide { grid-column: 1 / -1; }
+
+  .card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card, .box { min-width: 0; }   /* lets charts shrink with the window */
   h2 { margin: 0 0 10px; font-size: 15px; }
-  .box { position: relative; height: 280px; }
+  .box { position: relative; height: 320px; }
+  .card.wide .box { height: 360px; }
+
+  /* narrow screens: stack everything. This must come AFTER the .grid rule above */
+  @media (max-width: 800px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+  }
 </style>
 </head>
 <body>
@@ -22,7 +35,7 @@
   <div>
     <h1>Wiki Stream Pipeline</h1>
     <div class="meta">Live Wikimedia edits &middot; last updated: <span id="updated">-</span></div>
-    <div class="meta"><b>Updates every 10 seconds</b></div>
+    <div class="meta"><b>Updates every 5 seconds</b></div>
   </div>
   <label><input type="checkbox" id="wikidata"> Include Wikidata</label>
 </header>
@@ -34,8 +47,13 @@
 <script>
 const line = new Chart(document.getElementById('line'), {
   type: 'line',
-  data: { labels: [], datasets: [{ label: 'Edits', data: [], borderColor: '#3b6fd4', tension: .25, pointRadius: 0 }] },
-  options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  data: { labels: [], datasets: [{ label: 'Edits', data: [], borderColor: '#3b6fd4', tension: .25, pointRadius: 0,pointHoverRadius: 5 }] },
+  options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: {callbacks: {
+          title: items => items[0].label,
+          label: ctx => `${ctx.parsed.y.toLocaleString()} edits`
+        }
+      }},  
+    scales: { y: { beginAtZero: true } } }
 });
 const bar = new Chart(document.getElementById('bar'), {
   type: 'bar',
