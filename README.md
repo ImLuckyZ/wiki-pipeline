@@ -1,4 +1,4 @@
-# WikiPulse
+# Wiki Stream Pipeline
 
 A real-time data pipeline that ingests the live Wikimedia edit stream, aggregates it with Spark Structured Streaming, stores the results in PostgreSQL, and serves them through a FastAPI backend to a live dashboard. Everything runs with one `docker compose up`.
 
